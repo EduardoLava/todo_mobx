@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_mobx/flutter_mobx.dart';
+import 'package:provider/provider.dart';
+import 'package:todomobx/store/list_store.dart';
+import 'package:todomobx/store/login_store.dart';
 import 'package:todomobx/widgets/custom_icon_button.dart';
 import 'package:todomobx/widgets/custom_text_field.dart';
 
@@ -11,6 +15,10 @@ class ListScreen extends StatefulWidget {
 }
 
 class _ListScreenState extends State<ListScreen> {
+
+  ListStore _listStore = ListStore();
+
+  final TextEditingController _controller = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -38,8 +46,9 @@ class _ListScreenState extends State<ListScreen> {
                       icon: Icon(Icons.exit_to_app),
                       color: Colors.white,
                       onPressed: (){
+                        Provider.of<LoginStore>(context, listen: false).logout();
                         Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(builder: (context)=>LoginScreen())
+                            MaterialPageRoute(builder: (context)=>LoginScreen())
                         );
                       },
                     ),
@@ -56,35 +65,67 @@ class _ListScreenState extends State<ListScreen> {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: <Widget>[
-                        CustomTextField(
-                          hint: 'Tarefa',
-                          onChanged: (todo){
-
+                        Observer(
+                          builder: (_) {
+                            return CustomTextField(
+                              controller: _controller,
+                              hint: 'Tarefa',
+                              onChanged: _listStore.setNewTodoTitle,
+                              suffix:  !_listStore.isFormValid ?
+                                  null
+                                  :
+                                  CustomIconButton(
+                                    radius: 32,
+                                    iconData: Icons.add,
+                                    onTap: (){
+                                      _listStore.addTodo();
+                                      WidgetsBinding.instance.addPostFrameCallback((_){
+                                        //executa apos o termino da renderização dos widgets
+                                        // para não dar um erro do flutter
+                                        _controller.clear();
+                                      });
+                                    },
+                                  ),
+                            );
                           },
-                          suffix: CustomIconButton(
-                            radius: 32,
-                            iconData: Icons.add,
-                            onTap: (){
-
-                            },
-                          ),
                         ),
                         const SizedBox(height: 8,),
                         Expanded(
-                          child: ListView.separated(
-                            itemCount: 10,
-                            itemBuilder: (_, index){
-                              return ListTile(
-                                title: Text(
-                                  'Item $index',
-                                ),
-                                onTap: (){
+                          child: Observer(
+                            builder: (_){
+                              return ListView.separated(
+                                itemCount: _listStore.todoList.length,
+                                itemBuilder: (_, index){
 
+                                  final todo = _listStore.todoList[index];
+
+                                  return Observer(
+                                    builder: (_){
+                                      return ListTile(
+                                        title: Text(
+                                          "${todo.title}",
+                                          style: TextStyle(
+                                            decoration: todo.done ?
+                                                TextDecoration.lineThrough
+                                              :
+                                                null,
+                                            color: todo.done ?
+                                                Colors.grey
+                                              :
+                                                Colors.black
+                                          ),
+                                        ),
+
+                                        onTap: todo.toggleDone
+                                        ,
+                                      );
+                                    },
+                                  );
+                                },
+                                separatorBuilder: (_, __){
+                                  return Divider();
                                 },
                               );
-                            },
-                            separatorBuilder: (_, __){
-                              return Divider();
                             },
                           ),
                         ),
